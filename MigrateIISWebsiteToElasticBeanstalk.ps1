@@ -2473,7 +2473,7 @@ Invoke-CommandsWithRetry 99 $MigrationRunLogFile {
     New-Message $InfoMsg "    https://docs.aws.amazon.com/general/latest/gr/rande.html" $MigrationRunLogFile
 
     if ($NonInteractiveMode) {
-        $regionInput = $mfarg_regionInput
+        $regionInput = $mfarg_region
     } else {
         $regionInput = Get-UserInputString $MigrationRunLogFile "Enter the AWS Region [us-east-1]"
     }
@@ -3006,13 +3006,18 @@ while ((Date) -lt $waitTime) {
             $deploymentSucceeded = $True
             break
         }
-    } elseif ($health -eq "Red" -or $health -eq "Yellow") {
-        $deploymentSucceeded = $False
-        break
     }
-    # else health = Grey: deployment in process
+    # else health = Grey: deployment in process. Red: error can happen, but it can still recuperate
     Start-Sleep -Milliseconds 30000 # sleep for 30 seconds
     Append-DotsToLatestMessage 1
+}
+
+# if it's still Red or Yellow after 30 minutes, deployment failed
+$ebEnvironment = Get-EBEnvironment -EnvironmentId $glb_EBEnvID
+$health = $ebEnvironment.Health
+if ($health -eq "Red" -or $health -eq "Yellow") {
+    $deploymentSucceeded = $False
+    break
 }
 
 if ($s3BucketToCleanUp -and $DeleteTempS3Buckets) {
